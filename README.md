@@ -4,7 +4,7 @@ A real-time global wildfire intelligence dashboard that pulls live NASA satellit
 
 ## 🌐 Live Demo
 
-**[firescope.vercel.app](https://firescope.vercel.app)** (replace with actual Vercel URL after deploy)
+**[fire-scope-git.vercel.app](https://fire-scope-git.vercel.app)**
 
 ## ✨ Features
 
