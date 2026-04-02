@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FireScope — Global Wildfire Intelligence</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Globe.gl -->
+  <script src="https://unpkg.com/globe.gl@2.30.0/dist/globe.gl.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- D3 -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot-screen">
+  <div class="boot-content">
+    <div class="fire-logo">🔥</div>
+    <div class="boot-title">FIRESCOPE</div>
+    <div class="boot-sub">Global Wildfire Intelligence System</div>
+    <div class="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
+    <div class="boot-status" id="boot-status">Initializing satellite link…</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="hidden">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <span class="fire-emoji">🔥</span>
+      <span class="logo-text">FireScope</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-view="globe">
+        <span class="nav-icon">🌍</span><span>Globe View</span>
+      </a>
+      <a href="#" class="nav-item" data-view="map">
+        <span class="nav-icon">🗺️</span><span>Live Map</span>
+      </a>
+      <a href="#" class="nav-item" data-view="analytics">
+        <span class="nav-icon">📊</span><span>Analytics</span>
+      </a>
+      <a href="#" class="nav-item" data-view="alerts">
+        <span class="nav-icon">🚨</span><span>Alerts</span>
+        <span class="badge" id="alert-badge">0</span>
+      </a>
+      <a href="#" class="nav-item" data-view="info">
+        <span class="nav-icon">ℹ️</span><span>About</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-stats">
+      <div class="stat-card">
+        <div class="stat-label">Active Fires</div>
+        <div class="stat-value" id="stat-fires">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Countries</div>
+        <div class="stat-value" id="stat-countries">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Max FRP</div>
+        <div class="stat-value" id="stat-max-frp">—</div>
+        <div class="stat-unit">MW</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Data Source</div>
+        <div class="stat-value green">NASA FIRMS</div>
+      </div>
+    </div>
+
+    <div class="sidebar-filter">
+      <div class="filter-title">Filters</div>
+      <label class="filter-label">Min Brightness (K)
+        <input type="range" id="filter-brightness" min="300" max="500" value="310" />
+        <span id="filter-brightness-val">310</span>
+      </label>
+      <label class="filter-label">Time Range
+        <select id="filter-time">
+          <option value="24h">Last 24 hours</option>
+          <option value="48h">Last 48 hours</option>
+          <option value="7d">Last 7 days</option>
+        </select>
+      </label>
+      <label class="filter-label">Min FRP (MW)
+        <input type="range" id="filter-frp" min="0" max="1000" value="0" step="10" />
+        <span id="filter-frp-val">0</span>
+      </label>
+      <button class="btn-apply" id="btn-apply-filters">Apply Filters</button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="last-updated">Updated: <span id="last-updated-time">—</span></div>
+      <button class="btn-refresh" id="btn-refresh">↻ Refresh</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main id="main">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="hamburger">☰</button>
+        <div class="breadcrumb" id="breadcrumb">Global Overview</div>
+      </div>
+      <div class="topbar-center">
+        <div class="search-wrap">
+          <input type="text" id="search-input" placeholder="Search region or country…" />
+          <button id="search-btn">🔍</button>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="live-dot"></div>
+        <span class="live-label">LIVE</span>
+        <div class="weather-widget" id="weather-widget">🌡 Loading…</div>
+      </div>
+    </header>
+
+    <!-- VIEWS -->
+    <div id="view-globe" class="view active">
+      <div id="globe-container"></div>
+      <div class="globe-overlay" id="globe-overlay">
+        <div class="go-title">🔥 FireScope</div>
+        <div class="go-sub">Drag to rotate · Scroll to zoom</div>
+      </div>
+      <div class="legend-card" id="legend">
+        <div class="legend-title">Fire Radiative Power</div>
+        <div class="legend-scale">
+          <div class="ls-bar"></div>
+          <div class="ls-labels"><span>Low</span><span>Medium</span><span>High</span><span>Extreme</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-map" class="view">
+      <div id="map-container"></div>
+      <div id="map-info-panel" class="info-panel hidden">
+        <button class="info-close" id="map-info-close">✕</button>
+        <div id="map-info-content"></div>
+      </div>
+    </div>
+
+    <div id="view-analytics" class="view">
+      <div class="analytics-grid">
+        <div class="chart-card wide">
+          <div class="chart-title">Active Fires by Continent</div>
+          <canvas id="chart-continent"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">FRP Distribution</div>
+          <canvas id="chart-frp"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Top 10 Countries by Fire Count</div>
+          <canvas id="chart-countries"></canvas>
+        </div>
+        <div class="chart-card wide">
+          <div class="chart-title">Brightness Temperature Distribution</div>
+          <canvas id="chart-brightness"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Day vs Night Detections</div>
+          <canvas id="chart-daynight"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Confidence Level Breakdown</div>
+          <canvas id="chart-confidence"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-alerts" class="view">
+      <div class="alerts-header">
+        <h2>🚨 High-Priority Fire Alerts</h2>
+        <p>Fires with Fire Radiative Power &gt; 500 MW or brightness &gt; 430 K</p>
+      </div>
+      <div id="alerts-list" class="alerts-list"></div>
+    </div>
+
+    <div id="view-info" class="view">
+      <div class="info-page">
+        <h1>🔥 About FireScope</h1>
+        <p class="info-lead">FireScope is a real-time global wildfire intelligence dashboard powered by live NASA FIRMS satellite fire detections. It visualizes fire activity on an interactive 3D globe and 2D map, computes fire danger indices, and surfaces high-priority alerts.</p>
+
+        <div class="info-sections">
+          <div class="info-section">
+            <h3>Data Sources</h3>
+            <ul>
+              <li><strong>NASA FIRMS</strong> — Fire Information for Resource Management System. MODIS and VIIRS satellite fire detections updated every 3–12 hours. <a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank">firms.modaps.eosdis.nasa.gov</a></li>
+              <li><strong>Open-Meteo</strong> — Free open-source weather API for current conditions. <a href="https://open-meteo.com/" target="_blank">open-meteo.com</a></li>
+              <li><strong>Natural Earth</strong> — Country boundary data for geocoding. <a href="https://www.naturalearthdata.com/" target="_blank">naturalearthdata.com</a></li>
+            </ul>
+          </div>
+          <div class="info-section">
+            <h3>Key Metrics</h3>
+            <ul>
+              <li><strong>FRP (Fire Radiative Power)</strong> — Measured in Megawatts, indicates the radiant heat output of a fire.</li>
+              <li><strong>Brightness</strong> — Brightness temperature in Kelvin detected by the satellite sensor.</li>
+              <li><strong>Confidence</strong> — Algorithm confidence: Low / Nominal / High.</li>
+              <li><strong>Daynight</strong> — Whether the detection was during the day (D) or night (N) overpass.</li>
+            </ul>
+          </div>
+          <div class="info-section">
+            <h3>Technology Stack</h3>
+            <ul>
+              <li>Globe.gl — 3D WebGL globe rendering</li>
+              <li>Leaflet.js — 2D interactive map</li>
+              <li>Chart.js + D3.js — Analytics visualizations</li>
+              <li>NASA FIRMS API — Live satellite fire data</li>
+              <li>Open-Meteo API — Real-time weather</li>
+            </ul>
+          </div>
+          <div class="info-section">
+            <h3>Built By</h3>
+            <p>Anupama Sharma · <a href="https://github.com/AnupamaSharma2000/fire-scope" target="_blank">github.com/AnupamaSharma2000/fire-scope</a></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIRE DETAIL POPUP -->
+    <div id="fire-popup" class="fire-popup hidden">
+      <div class="fp-header">
+        <span class="fp-icon">🔥</span>
+        <div>
+          <div class="fp-title" id="fp-title">Fire Detection</div>
+          <div class="fp-coords" id="fp-coords"></div>
+        </div>
+        <button class="fp-close" id="fp-close">✕</button>
+      </div>
+      <div class="fp-grid" id="fp-grid"></div>
+      <div class="fp-weather" id="fp-weather">Loading weather…</div>
+    </div>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
